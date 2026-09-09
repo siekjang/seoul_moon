@@ -1,0 +1,1685 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>서울 달 시뮬레이터 - Seoul Moon Simulator</title>
+  
+  <!-- SEO & Open Graph Meta Tags for Vercel & Social Sharing -->
+  <meta name="description" content="서울 위경도 기준 실시간 달의 위상, 남중 고도, 방위각, 출몰 시각 및 월간 달력 시뮬레이터">
+  <meta name="theme-color" content="#060911">
+  <meta property="og:title" content="서울 달 시뮬레이터 | Seoul Moon Simulator">
+  <meta property="og:description" content="서울 하늘에서 바라보는 달의 실시간 모습과 24시간 이동 궤적을 관측해보세요.">
+  <meta property="og:type" content="website">
+
+  <!-- Dynamic Inline SVG Favicon -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='46' fill='%230e172a'/><path d='M50 4 A46 46 0 0 1 50 96 A46 46 0 0 0 50 4' fill='%23fbbf24'/></svg>">
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts Inter & Noto Sans KR -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Noto Sans KR"', 'Inter', 'sans-serif'],
+          },
+          colors: {
+            cosmic: {
+              900: '#070a13',
+              800: '#0d1322',
+              700: '#161f36',
+              600: '#1e294b',
+              accent: '#e2e8f0',
+              glow: '#38bdf8',
+              gold: '#fbbf24'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      background-color: #060911;
+      color: #f1f5f9;
+      font-family: 'Noto Sans KR', 'Inter', sans-serif;
+      overflow-x: hidden;
+    }
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0b0f19;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #28354f;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #3b82f6;
+    }
+    input[type=range] {
+      -webkit-appearance: none;
+      background: #1e293b;
+      border-radius: 9999px;
+      outline: none;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #38bdf8;
+      cursor: pointer;
+      box-shadow: 0 0 10px rgba(56, 189, 248, 0.7);
+      border: 2px solid #ffffff;
+      transition: transform 0.1s;
+    }
+    input[type=range]::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-[#060911] text-slate-100 flex flex-col selection:bg-blue-600 selection:text-white">
+
+  <!-- Top Navigation & Status Bar -->
+  <header class="border-b border-slate-800/80 bg-[#090d1a]/90 backdrop-blur-md sticky top-0 z-40 px-4 lg:px-8 py-3.5 shadow-lg shadow-black/40">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-600 via-sky-500 to-amber-200 flex items-center justify-center shadow-lg shadow-sky-500/20 ring-1 ring-white/30">
+          <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M12 3a9 9 0 109 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 01-4.4 2.26 5.403 5.403 0 01-3.14-9.8c-.44-.06-.9-.1-1.36-.1z"/>
+          </svg>
+        </div>
+        <div>
+          <h1 class="text-lg md:text-xl font-bold tracking-tight bg-gradient-to-r from-white via-slate-200 to-sky-300 bg-clip-text text-transparent">
+            서울 달 시뮬레이터 <span class="text-xs font-medium text-sky-400 font-mono ml-1 px-2 py-0.5 rounded-full bg-sky-950/70 border border-sky-800/60">SEOUL 37.56°N</span>
+          </h1>
+          <p class="text-xs text-slate-400 hidden sm:block">서울 위경도 기준 실시간 달 위상 · 남중 고도 · 출몰 시각 시뮬레이션</p>
+        </div>
+      </div>
+
+      <!-- Quick Actions / Live sync button -->
+      <div class="flex items-center space-x-2 text-xs">
+        <div class="bg-slate-900/90 border border-slate-700/80 rounded-lg px-3 py-1.5 flex items-center space-x-2 text-slate-300">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" id="live-indicator"></span>
+          <span id="current-sim-clock" class="font-mono font-medium text-sky-300">--:--:--</span>
+          <span class="text-slate-500 font-mono text-[10px]">KST</span>
+        </div>
+        <button id="btn-now" class="px-3 py-1.5 rounded-lg bg-sky-600/30 hover:bg-sky-600/50 text-sky-300 border border-sky-500/40 font-medium transition-all flex items-center space-x-1">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+          <span>지금 이 순간</span>
+        </button>
+        <button id="btn-open-verify" class="px-3 py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-300 border border-emerald-500/50 font-medium transition-all flex items-center space-x-1.5 shadow-sm">
+          <svg class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+          <span>코드 검증</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto w-full px-4 lg:px-8 py-5 flex-1 flex flex-col gap-6">
+
+    <!-- Control Bar: Date & Time Selector & Presets -->
+    <section class="bg-[#0e1424]/90 border border-slate-800 rounded-2xl p-4 md:p-5 shadow-xl backdrop-blur">
+      <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+        <!-- Date Selector -->
+        <div class="md:col-span-4 flex flex-col gap-1.5">
+          <div class="flex items-center justify-between">
+            <label for="date-picker" class="text-xs font-semibold text-slate-300 flex items-center space-x-1.5">
+              <svg class="w-4 h-4 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+              </svg>
+              <span>관측 날짜 선택</span>
+            </label>
+            <div class="flex items-center space-x-1">
+              <button id="btn-prev-day" title="하루 전" class="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs px-2 transition">◀ -1일</button>
+              <button id="btn-next-day" title="하루 후" class="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs px-2 transition">+1일 ▶</button>
+            </div>
+          </div>
+          <input type="date" id="date-picker" class="w-full bg-[#141c30] border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-slate-100 font-medium focus:ring-2 focus:ring-sky-500 focus:outline-none transition cursor-pointer">
+        </div>
+
+        <!-- Time Selector and Time Slider -->
+        <div class="md:col-span-5 flex flex-col gap-1.5">
+          <div class="flex items-center justify-between">
+            <label for="time-slider" class="text-xs font-semibold text-slate-300 flex items-center space-x-1.5">
+              <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
+              </svg>
+              <span>관측 시각 (서울 현지시각)</span>
+            </label>
+            <span id="selected-time-display" class="font-mono text-sm font-bold text-amber-300 px-2 py-0.5 rounded bg-amber-950/40 border border-amber-800/50">21:00</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <input type="range" id="time-slider" min="0" max="1439" step="5" value="1260" class="w-full h-2 rounded-lg cursor-pointer">
+            <div class="flex items-center space-x-1 shrink-0">
+              <button id="btn-prev-hour" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs">-1h</button>
+              <button id="btn-next-hour" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs">+1h</button>
+              <button id="btn-play-time" class="p-1 px-2.5 rounded bg-sky-600/70 hover:bg-sky-500 text-white text-xs font-semibold flex items-center gap-1 transition">
+                <span id="play-icon">▶</span>
+                <span id="play-text">재생</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Major Lunar Events Presets -->
+        <div class="md:col-span-3 flex flex-col gap-1.5">
+          <label class="text-xs font-semibold text-slate-300 flex items-center space-x-1">
+            <span>주요 기념일 및 달 위상</span>
+          </label>
+          <div class="grid grid-cols-2 gap-1.5">
+            <button data-preset="chuseok" class="preset-btn px-2.5 py-1.5 text-xs rounded-lg bg-slate-800/80 hover:bg-amber-600/30 hover:border-amber-500/50 border border-slate-700/60 text-slate-200 text-center transition truncate">
+              🌕 2026 추석(보름)
+            </button>
+            <button data-preset="daeboreum" class="preset-btn px-2.5 py-1.5 text-xs rounded-lg bg-slate-800/80 hover:bg-amber-600/30 hover:border-amber-500/50 border border-slate-700/60 text-slate-200 text-center transition truncate">
+              🏮 정월대보름
+            </button>
+            <button data-preset="supermoon" class="preset-btn px-2.5 py-1.5 text-xs rounded-lg bg-slate-800/80 hover:bg-sky-600/30 hover:border-sky-500/50 border border-slate-700/60 text-slate-200 text-center transition truncate">
+              ⭐ 2026 슈퍼문
+            </button>
+            <button data-preset="newmoon" class="preset-btn px-2.5 py-1.5 text-xs rounded-lg bg-slate-800/80 hover:bg-indigo-600/30 hover:border-indigo-500/50 border border-slate-700/60 text-slate-200 text-center transition truncate">
+              🌑 그믐/신월 (삭)
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Visualization & Data Display Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+      <!-- Left / Main Visualizer Section -->
+      <div class="lg:col-span-7 flex flex-col gap-4">
+        
+        <!-- View Mode Switcher -->
+        <div class="bg-[#0e1424]/90 border border-slate-800 rounded-2xl p-2 flex items-center justify-between shadow-lg">
+          <div class="flex items-center space-x-1.5 p-1 bg-slate-900/90 rounded-xl border border-slate-800 text-xs">
+            <button id="view-mode-moon" class="view-btn px-3 py-1.5 rounded-lg bg-sky-600 text-white font-medium transition shadow">
+              달 확대 관측 뷰
+            </button>
+            <button id="view-mode-sky" class="view-btn px-3 py-1.5 rounded-lg text-slate-400 hover:text-white transition">
+              서울 하늘 궤적 뷰
+            </button>
+            <button id="view-mode-cal" class="view-btn px-3 py-1.5 rounded-lg text-slate-400 hover:text-white transition flex items-center gap-1">
+              <span>📅</span>
+              <span>월간 달력 보기</span>
+            </button>
+          </div>
+          <div class="flex items-center space-x-2 text-xs pr-2">
+            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium" id="visibility-badge">
+              확인 중...
+            </span>
+          </div>
+        </div>
+
+        <!-- Canvas Container: Moon Close-up View -->
+        <div id="container-moon-view" class="relative bg-gradient-to-b from-[#050811] via-[#090e1c] to-[#04060c] border border-slate-800 rounded-2xl overflow-hidden shadow-2xl flex flex-col items-center justify-center min-h-[460px] p-4">
+          <!-- Ambient Starfield Canvas -->
+          <canvas id="canvas-stars" class="absolute inset-0 w-full h-full pointer-events-none opacity-80"></canvas>
+          
+          <!-- Detailed Moon Canvas -->
+          <div class="relative z-10 flex flex-col items-center">
+            <canvas id="canvas-moon" width="400" height="400" class="max-w-[320px] sm:max-w-[380px] aspect-square rounded-full transition-transform duration-300"></canvas>
+            
+            <!-- Tilt orientation compass -->
+            <div class="mt-4 flex items-center gap-4 bg-slate-950/70 border border-slate-800/80 px-4 py-1.5 rounded-full text-xs text-slate-300 backdrop-blur">
+              <span class="flex items-center gap-1.5">
+                <span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
+                <span>밝은 부위 방향각:</span>
+                <strong id="limb-angle-text" class="font-mono text-amber-300">0°</strong>
+              </span>
+              <span class="text-slate-600">|</span>
+              <span class="flex items-center gap-1.5">
+                <span>서울 천정(위쪽) 기준 실제 기울기 반영</span>
+              </span>
+            </div>
+          </div>
+
+          <!-- Bottom Moon Feature Badges -->
+          <div class="absolute bottom-3 left-4 right-4 flex justify-between items-center text-[11px] text-slate-400 z-10 pointer-events-none">
+            <span class="bg-slate-900/80 px-2.5 py-1 rounded-md border border-slate-800/60 backdrop-blur">
+              지형: 고요의 바다, 비의 바다, 티코 크레이터
+            </span>
+            <span class="bg-slate-900/80 px-2.5 py-1 rounded-md border border-slate-800/60 backdrop-blur font-mono text-sky-400" id="distance-scale-indicator">
+              시직경: 31' 14"
+            </span>
+          </div>
+        </div>
+
+        <!-- Canvas Container: Seoul Horizon Sky Dome View -->
+        <div id="container-sky-view" class="hidden relative bg-gradient-to-b from-[#02050f] via-[#081226] to-[#121c2e] border border-slate-800 rounded-2xl overflow-hidden shadow-2xl flex flex-col min-h-[460px]">
+          <canvas id="canvas-sky" class="w-full h-full min-h-[440px] block"></canvas>
+          <div class="absolute top-3 left-4 text-xs bg-slate-950/85 border border-slate-800 px-3 py-1.5 rounded-lg text-slate-300 backdrop-blur flex items-center space-x-3">
+            <div class="flex items-center space-x-1.5">
+              <span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
+              <span class="text-amber-200 font-medium">☀️ 태양</span>
+            </div>
+            <div class="flex items-center space-x-1.5">
+              <span class="w-2.5 h-2.5 rounded-full bg-sky-400"></span>
+              <span class="text-sky-200 font-medium">🌙 달</span>
+            </div>
+            <span class="text-slate-500">|</span>
+            <span class="text-slate-400 hidden sm:inline">24시간 이동 궤적 (동 90° ➔ 남 180° ➔ 서 270°)</span>
+          </div>
+          <!-- Daytime Moon Explanatory Alert Badge on Sky View -->
+          <div id="sky-daytime-alert" class="hidden absolute top-14 left-4 right-4 bg-amber-950/85 border border-amber-600/60 rounded-xl p-2.5 text-xs text-amber-200 backdrop-blur shadow-lg flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2">
+              <span class="text-base">ℹ️</span>
+              <span><strong>낮달(Daytime Moon) 상태:</strong> 현재 선택된 날짜는 그믐/초승달 시기로, 달이 태양 근처에 있어 <strong>낮에 뜨고 밤에는 이미 져서 보이지 않습니다</strong>. 밤에 높이 뜬 달을 보시려면 상단의 <strong>[🌕 보름달]</strong> 프리셋을 선택해 보세요.</span>
+            </div>
+            <button id="btn-quick-fullmoon" class="shrink-0 px-2.5 py-1 rounded bg-amber-600 hover:bg-amber-500 text-white font-semibold text-[11px] transition">보름달 보기</button>
+          </div>
+          <div class="absolute bottom-3 right-4 text-xs bg-slate-950/80 border border-slate-800 px-3 py-1 rounded-lg text-slate-400 font-mono">
+            남산 & 서울 도심 지평선 37.56°N
+          </div>
+        </div>
+
+        <!-- Monthly Calendar View Container -->
+        <div id="container-cal-view" class="hidden bg-[#0e1424]/95 border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-2xl flex flex-col min-h-[460px]">
+          <div class="flex items-center justify-between mb-3 pb-3 border-b border-slate-800/80">
+            <div class="flex items-center space-x-2">
+              <button id="btn-cal-prev-month" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs transition">◀ 이전달</button>
+              <h3 id="cal-month-title" class="text-base sm:text-lg font-bold text-sky-300 font-mono px-2">2026년 9월</h3>
+              <button id="btn-cal-next-month" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs transition">다음달 ▶</button>
+            </div>
+            <div class="flex items-center gap-2 text-[11px] text-slate-400 hidden sm:flex">
+              <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-slate-700"></span> 삭</span>
+              <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-sky-500"></span> 상현</span>
+              <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-amber-400"></span> 망(보름)</span>
+              <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-indigo-500"></span> 하현</span>
+            </div>
+          </div>
+          <!-- Days of Week Header -->
+          <div class="grid grid-cols-7 gap-1.5 text-center text-xs font-semibold text-slate-400 pb-2 border-b border-slate-800/60">
+            <span class="text-rose-400">일</span>
+            <span>월</span>
+            <span>화</span>
+            <span>수</span>
+            <span>목</span>
+            <span>금</span>
+            <span class="text-sky-400">토</span>
+          </div>
+          <!-- Calendar Days Dynamic Grid -->
+          <div id="calendar-days-grid" class="grid grid-cols-7 gap-1.5 pt-2 flex-1"></div>
+        </div>
+
+      </div>
+
+      <!-- Right: Detailed Lunar Astronomy & Seoul Observation Panel -->
+      <div class="lg:col-span-5 flex flex-col gap-4">
+
+        <!-- Phase & Illumination Main Card -->
+        <div class="bg-[#0e1424]/90 border border-slate-800 rounded-2xl p-5 shadow-xl backdrop-blur relative overflow-hidden">
+          <div class="absolute -right-6 -bottom-6 w-36 h-36 bg-sky-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+          <div class="flex items-center justify-between pb-3 border-b border-slate-800/80">
+            <div>
+              <span class="text-xs font-medium text-sky-400 uppercase tracking-wider">LUNAR PHASE</span>
+              <h2 id="phase-name-kr" class="text-2xl font-bold text-white tracking-tight mt-0.5">보름달 (망)</h2>
+              <p id="phase-name-en" class="text-xs text-slate-400">Full Moon</p>
+            </div>
+            <div class="text-right">
+              <span class="text-xs text-slate-400">월령 (달의 나이)</span>
+              <p id="moon-age-display" class="text-xl font-mono font-bold text-amber-300 mt-0.5">14.8 일</p>
+              <span id="lunar-calendar-est" class="text-[11px] text-slate-400">음력 약 15일경</span>
+            </div>
+          </div>
+
+          <!-- Illumination Progress Bar -->
+          <div class="mt-4 space-y-1.5">
+            <div class="flex justify-between text-xs font-semibold">
+              <span class="text-slate-300">조도율 (밝은 면적 비율)</span>
+              <span id="illumination-text" class="text-sky-300 font-mono">99.8%</span>
+            </div>
+            <div class="w-full bg-slate-800/80 h-3 rounded-full overflow-hidden p-0.5 border border-slate-700/60">
+              <div id="illumination-bar" class="h-full bg-gradient-to-r from-sky-500 via-amber-200 to-white rounded-full transition-all duration-300 shadow-sm shadow-sky-400/50" style="width: 99.8%"></div>
+            </div>
+            <div class="flex justify-between text-[10px] text-slate-400 pt-0.5 font-mono">
+              <span>0% (삭)</span>
+              <span>50% (상현)</span>
+              <span>100% (보름)</span>
+              <span>50% (하현)</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Seoul Observation Real-time Metrics Card -->
+        <div class="bg-[#0e1424]/90 border border-slate-800 rounded-2xl p-5 shadow-xl backdrop-blur space-y-4">
+          <div class="flex items-center justify-between">
+            <h3 class="text-sm font-bold text-slate-200 flex items-center space-x-2">
+              <span class="p-1 rounded bg-sky-900/60 text-sky-400">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                </svg>
+              </span>
+              <span>서울 관측 위치 정보</span>
+            </h3>
+            <span class="text-xs text-slate-400 font-mono">N 37°34' · E 126°58'</span>
+          </div>
+
+          <!-- Altitude & Azimuth Grid -->
+          <div class="grid grid-cols-2 gap-3">
+            <div class="bg-slate-900/70 border border-slate-800 p-3 rounded-xl">
+              <div class="text-[11px] text-slate-400 font-medium">현재 고도 (Altitude)</div>
+              <div id="moon-alt-display" class="text-xl font-bold font-mono text-emerald-400 mt-1">+38.4°</div>
+              <div id="moon-alt-status" class="text-[11px] text-slate-400 mt-0.5">지평선 위 (관측 적기)</div>
+            </div>
+            <div class="bg-slate-900/70 border border-slate-800 p-3 rounded-xl">
+              <div class="text-[11px] text-slate-400 font-medium">방위각 (Azimuth)</div>
+              <div id="moon-az-display" class="text-xl font-bold font-mono text-sky-300 mt-1">162.5°</div>
+              <div id="moon-direction-display" class="text-[11px] text-slate-400 mt-0.5">남남동 (SSE) 방향</div>
+            </div>
+          </div>
+
+          <!-- Ephemeris Times (Moonrise, Transit, Moonset) -->
+          <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-3.5 divide-y divide-slate-800/80">
+            <div class="flex justify-between items-center pb-2.5">
+              <span class="text-xs text-slate-300 flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+                <span>월출 (달 뜨는 시각)</span>
+              </span>
+              <span id="time-moonrise" class="font-mono text-sm font-semibold text-amber-200">17:42</span>
+            </div>
+            <div class="flex justify-between items-center py-2.5">
+              <span class="text-xs text-slate-300 flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-sky-400"></span>
+                <span>남중 (가장 높이 뜨는 시각)</span>
+              </span>
+              <span id="time-transit" class="font-mono text-sm font-semibold text-sky-200">23:18</span>
+            </div>
+            <div class="flex justify-between items-center pt-2.5">
+              <span class="text-xs text-slate-300 flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-rose-400"></span>
+                <span>월몰 (달 지는 시각)</span>
+              </span>
+              <span id="time-moonset" class="font-mono text-sm font-semibold text-rose-200">다음날 06:12</span>
+            </div>
+          </div>
+
+          <!-- Secondary Astronomical Stats -->
+          <div class="grid grid-cols-2 gap-2 text-xs pt-1">
+            <div class="flex flex-col p-2.5 rounded-lg bg-slate-900/50 border border-slate-800/60">
+              <span class="text-slate-400 text-[11px]">지구-달 거리</span>
+              <span id="moon-distance-display" class="font-mono font-semibold text-slate-200 mt-0.5">384,400 km</span>
+              <span id="supermoon-badge" class="text-[10px] text-sky-400">평균 궤도 거리</span>
+            </div>
+            <div class="flex flex-col p-2.5 rounded-lg bg-slate-900/50 border border-slate-800/60">
+              <span class="text-slate-400 text-[11px]">위치 별자리 (황도궁)</span>
+              <span id="moon-constellation-display" class="font-medium text-slate-200 mt-0.5">물병자리 (Aquarius)</span>
+              <span class="text-[10px] text-slate-400">달이 지나가는 배경 별자리</span>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Viewing Guide & Tips Card -->
+        <div class="bg-gradient-to-br from-indigo-950/40 via-slate-900/80 to-[#0e1424] border border-indigo-900/30 rounded-2xl p-4 text-xs space-y-2">
+          <div class="flex items-center space-x-2 text-indigo-300 font-semibold">
+            <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <span>서울 달맞이 및 관측 팁</span>
+          </div>
+          <p id="seoul-observation-tip" class="text-slate-300 leading-relaxed">
+            달이 남중(남쪽 하늘 정점)에 도달할 때 대기 간섭이 가장 적어 망원경이나 육안으로 선명한 크레이터를 관측하기 좋습니다.
+          </p>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- Monthly Lunar Phase Calendar Strip -->
+    <section class="bg-[#0e1424]/90 border border-slate-800 rounded-2xl p-4 md:p-5 shadow-xl backdrop-blur">
+      <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+        <h3 class="text-sm font-bold text-slate-200 flex items-center gap-2">
+          <svg class="w-4 h-4 text-amber-400" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M10 2a8 8 0 100 16 8 8 0 000-16zM9 9V5a1 1 0 112 0v3.586l2.707 2.707a1 1 0 01-1.414 1.414L9 9.414V9z"/>
+          </svg>
+          <span id="calendar-month-title">선택 월 전후 28일 달 위상 변화 추이</span>
+        </h3>
+        <span class="text-xs text-slate-400">날짜를 클릭하면 해당 날짜로 즉시 이동합니다</span>
+      </div>
+      <div id="lunar-strip-container" class="flex gap-2 overflow-x-auto pb-2 pt-1 scroll-smooth">
+        <!-- Generated dynamically via JS -->
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="mt-auto border-t border-slate-800/80 bg-[#080c16] text-slate-400 text-xs py-4 px-4 text-center">
+    <div class="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-2">
+      <p>서울시 좌표 (37.5665° N, 126.9780° E) 기준 천문 천체역학 알고리즘 적용 (Jean Meeus 기반)</p>
+      <p class="text-slate-500">한국표준시(KST, UTC+9) · 실제 관측 환경은 기상에 따라 차이가 있을 수 있습니다.</p>
+    </div>
+  </footer>
+
+  <!-- Code Verification & Diagnostics Modal -->
+  <div id="verify-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm hidden p-4">
+    <div class="bg-[#0b101e] border border-slate-700 w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in duration-200">
+      <!-- Modal Header -->
+      <div class="px-5 py-4 border-b border-slate-800 flex items-center justify-between bg-[#0e1424]">
+        <div class="flex items-center space-x-2.5">
+          <span class="w-7 h-7 rounded-lg bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 text-sm font-bold">✓</span>
+          <div>
+            <h3 class="text-sm sm:text-base font-bold text-white">시스템 코드 및 천문 알고리즘 무결성 검증</h3>
+            <p class="text-xs text-slate-400">수학식 정밀도, 브라우저 타임존 호환성, 캔버스 렌더러 진단</p>
+          </div>
+        </div>
+        <button id="btn-close-verify" class="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition text-lg leading-none">✕</button>
+      </div>
+
+      <!-- Modal Body: Test Cases Results -->
+      <div class="p-5 overflow-y-auto space-y-3.5 text-xs">
+        <div class="flex items-center justify-between bg-slate-900/90 border border-slate-800 p-3 rounded-xl">
+          <div class="flex items-center space-x-2">
+            <span class="w-3 h-3 rounded-full bg-emerald-400"></span>
+            <span class="font-semibold text-slate-200">종합 검증 판정:</span>
+            <span id="verify-summary-badge" class="font-mono text-emerald-400 font-bold">검사 준비 완료</span>
+          </div>
+          <button id="btn-rerun-verify" class="px-2.5 py-1 bg-sky-600/30 hover:bg-sky-600/50 text-sky-300 border border-sky-500/40 rounded-md font-medium transition">
+            재검증 실행
+          </button>
+        </div>
+
+        <div id="verify-tests-list" class="space-y-2 font-mono">
+          <!-- Dynamic test items inserted here -->
+        </div>
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="px-5 py-3 border-t border-slate-800 bg-[#0e1424] flex items-center justify-between text-[11px] text-slate-400">
+        <span>한국천문연구원(KASI) 천문 계산 기준 준수</span>
+        <button id="btn-confirm-verify" class="px-4 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-medium transition">
+          닫기
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ASTRONOMICAL ENGINE & APPLICATION SCRIPT -->
+  <script>
+    // Seoul Geographical Constants
+    const SEOUL_LAT = 37.5665 * Math.PI / 180; // 37.5665° N in radians
+    const SEOUL_LON = 126.9780 * Math.PI / 180; // 126.9780° E in radians
+    const SEOUL_LON_DEG = 126.9780;
+    const DEG = 180 / Math.PI;
+    const RAD = Math.PI / 180;
+
+    // Normalizes angle to [0, 2*PI)
+    function norm2PI(angle) {
+      const a = angle % (2 * Math.PI);
+      return a < 0 ? a + 2 * Math.PI : a;
+    }
+
+    // Converts a standard Date (evaluated in UTC) to Astronomical Julian Date
+    function toJulianDate(date) {
+      return (date.getTime() / 86400000.0) + 2440587.5;
+    }
+
+    // Creates an absolute UTC Date object corresponding strictly to KST (UTC+9)
+    function createKSTDate(year, month, day, hour = 0, minute = 0, second = 0) {
+      // Month is 1-indexed (1 = January, 12 = December)
+      return new Date(Date.UTC(year, month - 1, day, hour - 9, minute, second));
+    }
+
+    // High precision Jean Meeus low-order approximations for Moon & Sun
+    function getSunPosition(d) {
+      // Mean longitude of the Sun
+      const L = norm2PI((280.460 + 0.9856474 * d) * RAD);
+      // Mean anomaly of the Sun
+      const g = norm2PI((357.528 + 0.9856003 * d) * RAD);
+      // Ecliptic longitude
+      const lambda = norm2PI(L + (1.915 * Math.sin(g) + 0.020 * Math.sin(2 * g)) * RAD);
+      // Obliquity of the ecliptic
+      const eps = 23.439 * RAD;
+      // Right Ascension and Declination
+      const ra = Math.atan2(Math.cos(eps) * Math.sin(lambda), Math.cos(lambda));
+      const dec = Math.asin(Math.sin(eps) * Math.sin(lambda));
+      return { ra: norm2PI(ra), dec, lambda, distAU: 1.000 };
+    }
+
+    function getMoonPosition(d) {
+      const RAD = Math.PI / 180;
+      // Mean longitude of the Moon
+      const L = norm2PI((218.316 + 13.176396 * d) * RAD);
+      // Mean anomaly of the Moon
+      const M = norm2PI((134.963 + 13.064993 * d) * RAD);
+      // Moon's argument of latitude
+      const F = norm2PI((93.272 + 13.229350 * d) * RAD);
+
+      // Ecliptic longitude & latitude with leading periodic perturbations
+      const lambda = norm2PI(L + (6.289 * Math.sin(M)) * RAD);
+      const beta = (5.128 * Math.sin(F)) * RAD;
+      // Earth-Moon distance (km)
+      const dist = 385001 - 20905 * Math.cos(M);
+
+      const eps = 23.439 * RAD;
+      const sinDec = Math.sin(beta) * Math.cos(eps) + Math.cos(beta) * Math.sin(eps) * Math.sin(lambda);
+      const dec = Math.asin(Math.max(-1, Math.min(1, sinDec)));
+      const ra = Math.atan2(
+        Math.sin(lambda) * Math.cos(eps) - Math.tan(beta) * Math.sin(eps),
+        Math.cos(lambda)
+      );
+
+      return { ra: norm2PI(ra), dec, dist, lambda, beta };
+    }
+
+    function getGreenwichMeanSiderealTime(d) {
+      return norm2PI((280.46061837 + 360.98564736629 * d) * RAD);
+    }
+
+    function equatorialToHorizontal(ra, dec, date, lat = SEOUL_LAT, lon = SEOUL_LON) {
+      const jd = toJulianDate(date);
+      const d = jd - 2451545.0;
+      const gmst = getGreenwichMeanSiderealTime(d);
+      const lmst = norm2PI(gmst + lon);
+      let ha = lmst - ra;
+
+      const sinAlt = Math.sin(lat) * Math.sin(dec) + Math.cos(lat) * Math.cos(dec) * Math.cos(ha);
+      const alt = Math.asin(Math.max(-1, Math.min(1, sinAlt)));
+
+      const cosAz = (Math.sin(dec) - Math.sin(lat) * Math.sin(alt)) / (Math.cos(lat) * Math.cos(alt));
+      let az = Math.acos(Math.max(-1, Math.min(1, cosAz)));
+      if (Math.sin(ha) > 0) {
+        az = 2 * Math.PI - az;
+      }
+
+      return { alt, az, ha };
+    }
+
+    function getLunarDetails(date) {
+      const jd = toJulianDate(date);
+      const d = jd - 2451545.0;
+
+      const moon = getMoonPosition(d);
+      const sun = getSunPosition(d);
+      const hor = equatorialToHorizontal(moon.ra, moon.dec, date);
+      const sunHor = equatorialToHorizontal(sun.ra, sun.dec, date);
+
+      // Geocentric elongation (psi)
+      const cosPsi = Math.sin(sun.dec) * Math.sin(moon.dec) + Math.cos(sun.dec) * Math.cos(moon.dec) * Math.cos(sun.ra - moon.ra);
+      const psi = Math.acos(Math.max(-1, Math.min(1, cosPsi)));
+
+      // True Phase Angle (i) from Earth-Moon-Sun triangle
+      const R = 1.496e8; // 1 AU in km
+      const r = moon.dist; // Earth-Moon in km
+      // Corrected formula ensuring full moon has min phase angle and high illumination
+      const phaseAngle = Math.atan2(R * Math.sin(psi), r - R * Math.cos(psi));
+      const phaseAngleNorm = Math.abs(phaseAngle);
+
+      // Illumination fraction k (0.0 to 1.0)
+      const illumination = (1 + Math.cos(phaseAngleNorm)) / 2;
+
+      // Synodic age (approx days 0 to 29.53)
+      let diffL = (moon.lambda - sun.lambda) * DEG;
+      while (diffL < 0) diffL += 360;
+      const moonAge = (diffL / 360) * 29.53058867;
+
+      // Position angle of the Moon's bright limb (zenith-referenced tilt in Seoul)
+      const parAngle = Math.atan2(
+        Math.sin(hor.ha),
+        Math.tan(SEOUL_LAT) * Math.cos(moon.dec) - Math.sin(moon.dec) * Math.cos(hor.ha)
+      );
+      const chi = Math.atan2(
+        Math.cos(sun.dec) * Math.sin(sun.ra - moon.ra),
+        Math.sin(sun.dec) * Math.cos(moon.dec) - Math.cos(sun.dec) * Math.sin(moon.dec) * Math.cos(sun.ra - moon.ra)
+      );
+      const limbAngle = chi - parAngle;
+
+      // Constellation by ecliptic longitude
+      const constNames = [
+        '물고기자리 (Pisces)', '양자리 (Aries)', '황소자리 (Taurus)', '쌍둥이자리 (Gemini)',
+        '게자리 (Cancer)', '사자자리 (Leo)', '처녀자리 (Virgo)', '천칭자리 (Libra)',
+        '전갈자리 (Scorpius)', '궁수자리 (Sagittarius)', '염소자리 (Capricornus)', '물병자리 (Aquarius)'
+      ];
+      const constIdx = Math.floor(norm2PI(moon.lambda) / (Math.PI / 6)) % 12;
+
+      // Phase Classification
+      let phaseNameKr = '보름달 (망)';
+      let phaseNameEn = 'Full Moon';
+      const age = moonAge;
+
+      if (age < 1.5 || age > 28.0) {
+        phaseNameKr = '신월 / 그믐달 (삭)';
+        phaseNameEn = 'New Moon';
+      } else if (age >= 1.5 && age < 6.5) {
+        phaseNameKr = '초승달 (Waxing Crescent)';
+        phaseNameEn = 'Waxing Crescent';
+      } else if (age >= 6.5 && age < 8.5) {
+        phaseNameKr = '상현달 (First Quarter)';
+        phaseNameEn = 'First Quarter';
+      } else if (age >= 8.5 && age < 13.5) {
+        phaseNameKr = '차오르는 달 (Waxing Gibbous)';
+        phaseNameEn = 'Waxing Gibbous';
+      } else if (age >= 13.5 && age < 16.5) {
+        phaseNameKr = '보름달 (망, Full Moon)';
+        phaseNameEn = 'Full Moon';
+      } else if (age >= 16.5 && age < 21.5) {
+        phaseNameKr = '이지러지는 달 (Waning Gibbous)';
+        phaseNameEn = 'Waning Gibbous';
+      } else if (age >= 21.5 && age < 23.5) {
+        phaseNameKr = '하현달 (Third Quarter)';
+        phaseNameEn = 'Third Quarter';
+      } else {
+        phaseNameKr = '그믐달 (Waning Crescent)';
+        phaseNameEn = 'Waning Crescent';
+      }
+
+      return {
+        illumination,
+        moonAge,
+        phaseAngle: phaseAngleNorm,
+        limbAngle,
+        altitudeDeg: hor.alt * DEG,
+        azimuthDeg: hor.az * DEG,
+        sunAltitudeDeg: sunHor.alt * DEG,
+        sunAzimuthDeg: sunHor.az * DEG,
+        distanceKm: moon.dist,
+        constellation: constNames[constIdx],
+        phaseNameKr,
+        phaseNameEn
+      };
+    }
+
+    function computeSeoulEphemerisTimes(testDate) {
+      const dateParts = datePicker.value.split('-').map(Number);
+      const year = dateParts[0];
+      const month = dateParts[1];
+      const day = dateParts[2];
+
+      let rise = null;
+      let transit = null;
+      let set = null;
+      let maxAlt = -999;
+      let prevAlt = null;
+
+      for (let m = 0; m <= 1440; m += 10) {
+        const sampleDate = createKSTDate(year, month, day, Math.floor(m / 60), m % 60);
+        const jd = toJulianDate(sampleDate);
+        const d = jd - 2451545.0;
+        const moon = getMoonPosition(d);
+        const hor = equatorialToHorizontal(moon.ra, moon.dec, sampleDate);
+        const altDeg = hor.alt * DEG;
+
+        if (altDeg > maxAlt) {
+          maxAlt = altDeg;
+          transit = { h: Math.floor(m / 60) % 24, m: m % 60 };
+        }
+
+        if (prevAlt !== null) {
+          const horizonLevel = -0.566; // Standard atmospheric refraction + semidiameter
+          if (prevAlt < horizonLevel && altDeg >= horizonLevel && !rise) {
+            rise = { h: Math.floor(m / 60) % 24, m: m % 60 };
+          } else if (prevAlt >= horizonLevel && altDeg < horizonLevel && !set) {
+            set = { h: Math.floor(m / 60) % 24, m: m % 60 };
+          }
+        }
+
+        prevAlt = altDeg;
+      }
+
+      const formatTime = (t) => {
+        if (!t) return '해당일 없음';
+        const hh = String(t.h).padStart(2, '0');
+        const mm = String(t.m).padStart(2, '0');
+        return `${hh}:${mm}`;
+      };
+
+      return {
+        moonrise: formatTime(rise),
+        transit: formatTime(transit),
+        moonset: formatTime(set)
+      };
+    }
+
+    function getCompassDirection(azDeg) {
+      const dirs = ['북 (N)', '북북동 (NNE)', '북동 (NE)', '동북동 (ENE)', '동 (E)', '동남동 (ESE)', '남동 (SE)', '남남동 (SSE)',
+                    '남 (S)', '남남서 (SSW)', '남서 (SW)', '서남서 (WSW)', '서 (W)', '서북서 (WNW)', '북서 (NW)', '북북서 (NNW)', '북 (N)'];
+      const idx = Math.round((azDeg % 360) / 22.5);
+      return dirs[idx];
+    }
+
+    function renderMoonCloseUp(illumination, moonAge, limbAngle) {
+      const canvas = document.getElementById('canvas-moon');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const w = canvas.width;
+      const h = canvas.height;
+      const cx = w / 2;
+      const cy = h / 2;
+      const r = 160;
+
+      ctx.clearRect(0, 0, w, h);
+
+      ctx.save();
+      ctx.translate(cx, cy);
+      // Rotate by limb angle to reflect real Seoul sky orientation
+      ctx.rotate(limbAngle);
+
+      // Earthshine (faint glow on the dark side of the moon)
+      ctx.beginPath();
+      ctx.arc(0, 0, r, 0, Math.PI * 2);
+      ctx.fillStyle = '#101626';
+      ctx.fill();
+
+      // Draw Base Texture (Lunar Maria and Highlights)
+      const isWaxing = moonAge < 14.765;
+      const k = illumination;
+
+      // Clip to illuminated region
+      ctx.save();
+      ctx.beginPath();
+      if (k < 0.5) {
+        // Crescent
+        const wOffset = r * (1 - 2 * k);
+        if (isWaxing) {
+          ctx.arc(0, 0, r, -Math.PI / 2, Math.PI / 2, false);
+          ctx.ellipse(0, 0, wOffset, r, 0, Math.PI / 2, -Math.PI / 2, false);
+        } else {
+          ctx.arc(0, 0, r, Math.PI / 2, -Math.PI / 2, false);
+          ctx.ellipse(0, 0, wOffset, r, 0, -Math.PI / 2, Math.PI / 2, false);
+        }
+      } else {
+        // Gibbous to Full
+        const wOffset = r * (2 * k - 1);
+        if (isWaxing) {
+          ctx.arc(0, 0, r, -Math.PI / 2, Math.PI / 2, false);
+          ctx.ellipse(0, 0, wOffset, r, 0, Math.PI / 2, -Math.PI / 2, true);
+        } else {
+          ctx.arc(0, 0, r, Math.PI / 2, -Math.PI / 2, false);
+          ctx.ellipse(0, 0, wOffset, r, 0, -Math.PI / 2, Math.PI / 2, true);
+        }
+      }
+      ctx.closePath();
+      ctx.clip();
+
+      // Lit Surface Gradient
+      const grad = ctx.createRadialGradient(-30, -30, 20, 0, 0, r);
+      grad.addColorStop(0, '#ffffff');
+      grad.addColorStop(0.7, '#f4f4ec');
+      grad.addColorStop(1, '#d8dcd0');
+      ctx.fillStyle = grad;
+      ctx.fillRect(-r - 10, -r - 10, (r + 10) * 2, (r + 10) * 2);
+
+      // Maria (Dark basaltic lunar plains)
+      ctx.fillStyle = 'rgba(74, 85, 104, 0.45)';
+      // Mare Tranquillitatis (고요의 바다)
+      ctx.beginPath();
+      ctx.ellipse(45, -20, 38, 28, 0.3, 0, Math.PI * 2);
+      ctx.fill();
+      // Mare Serenitatis (맑음의 바다)
+      ctx.beginPath();
+      ctx.ellipse(32, -60, 32, 26, -0.2, 0, Math.PI * 2);
+      ctx.fill();
+      // Mare Imbrium (비의 바다)
+      ctx.beginPath();
+      ctx.ellipse(-45, -55, 50, 42, 0.1, 0, Math.PI * 2);
+      ctx.fill();
+      // Oceanus Procellarum (폭풍의 대양)
+      ctx.beginPath();
+      ctx.ellipse(-80, 0, 45, 75, -0.2, 0, Math.PI * 2);
+      ctx.fill();
+      // Mare Nubium (구름의 바다)
+      ctx.beginPath();
+      ctx.ellipse(-25, 45, 34, 28, 0.1, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Tycho Crater and radiating ejecta rays
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+      ctx.lineWidth = 1.2;
+      const tx = -15, ty = 95;
+      for (let i = 0; i < 14; i++) {
+        const ang = (i / 14) * Math.PI * 2;
+        const len = 40 + (i % 3) * 35;
+        ctx.beginPath();
+        ctx.moveTo(tx, ty);
+        ctx.lineTo(tx + Math.cos(ang) * len, ty + Math.sin(ang) * len);
+        ctx.stroke();
+      }
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(tx, ty, 6, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.restore(); // Exit clip
+
+      // Outer Rim Glow
+      ctx.beginPath();
+      ctx.arc(0, 0, r, 0, Math.PI * 2);
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = 'rgba(226, 232, 240, 0.2)';
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
+    function renderSkyTrajectory(details, testDate) {
+      const canvas = document.getElementById('canvas-sky');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width || 700;
+      canvas.height = rect.height || 440;
+      const w = canvas.width;
+      const h = canvas.height;
+
+      ctx.clearRect(0, 0, w, h);
+
+      // Background Sky Gradient depending on Sun altitude
+      const sunAlt = details.sunAltitudeDeg;
+      const skyGrad = ctx.createLinearGradient(0, 0, 0, h);
+      if (sunAlt > 0) {
+        // Daylight sky
+        skyGrad.addColorStop(0, '#1e3a8a');
+        skyGrad.addColorStop(0.6, '#38bdf8');
+        skyGrad.addColorStop(1, '#93c5fd');
+      } else if (sunAlt > -12) {
+        // Twilight / Dusk
+        skyGrad.addColorStop(0, '#0c102b');
+        skyGrad.addColorStop(0.5, '#2b1b54');
+        skyGrad.addColorStop(0.85, '#9a3412');
+        skyGrad.addColorStop(1, '#f97316');
+      } else {
+        // Night sky
+        skyGrad.addColorStop(0, '#020512');
+        skyGrad.addColorStop(0.6, '#081229');
+        skyGrad.addColorStop(1, '#111d38');
+      }
+      ctx.fillStyle = skyGrad;
+      ctx.fillRect(0, 0, w, h);
+
+      // Coordinate Mapping: Azimuth 90° (East) to 270° (West) across width
+      // Altitude 0° (Horizon) to 90° (Zenith) across height
+      const horizonY = h * 0.82;
+      const toX = (azDeg) => {
+        // Center Azimuth = 180 (South) at w/2
+        return ((azDeg - 90) / 180) * w;
+      };
+      const toY = (altDeg) => {
+        return horizonY - (altDeg / 90) * (horizonY - 30);
+      };
+
+      // Grid Lines & Compass Cardinal Marks
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+      ctx.lineWidth = 1;
+      [30, 60].forEach(alt => {
+        const y = toY(alt);
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(w, y);
+        ctx.stroke();
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+        ctx.font = '10px Inter, sans-serif';
+        ctx.fillText(`+${alt}°`, 12, y - 4);
+      });
+
+      // Cardinal Labels on Horizon
+      const cardinals = [
+        { name: '동 (East 90°)', az: 90 },
+        { name: '남동 (SE 135°)', az: 135 },
+        { name: '남 (South 180° - 남중)', az: 180 },
+        { name: '남서 (SW 225°)', az: 225 },
+        { name: '서 (West 270°)', az: 270 }
+      ];
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+      ctx.font = '11px sans-serif';
+      cardinals.forEach(c => {
+        const x = toX(c.az);
+        ctx.beginPath();
+        ctx.moveTo(x, horizonY - 6);
+        ctx.lineTo(x, horizonY + 6);
+        ctx.stroke();
+        ctx.fillText(c.name, x - 24, horizonY + 22);
+      });
+
+      // 28-hour continuous Moon flight trajectory arc
+      const curMs = testDate.getTime();
+      const points = [];
+      for (let offsetMin = -14 * 60; offsetMin <= 14 * 60; offsetMin += 12) {
+        const t = new Date(curMs + offsetMin * 60000);
+        const jd = toJulianDate(t);
+        const d = jd - 2451545.0;
+        const mPos = getMoonPosition(d);
+        const hPos = equatorialToHorizontal(mPos.ra, mPos.dec, t);
+        const altD = hPos.alt * DEG;
+        const azD = hPos.az * DEG;
+        if (azD >= 80 && azD <= 280 && altD >= -5) {
+          points.push({ x: toX(azD), y: toY(altD), alt: altD });
+        }
+      }
+
+      if (points.length > 1) {
+        ctx.strokeStyle = 'rgba(56, 189, 248, 0.4)';
+        ctx.lineWidth = 2.5;
+        ctx.setLineDash([5, 5]);
+        ctx.beginPath();
+        ctx.moveTo(points[0].x, points[0].y);
+        for (let i = 1; i < points.length; i++) {
+          ctx.lineTo(points[i].x, points[i].y);
+        }
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      // Draw Sun
+      if (details.sunAzimuthDeg >= 80 && details.sunAzimuthDeg <= 280 && details.sunAltitudeDeg >= -8) {
+        const sx = toX(details.sunAzimuthDeg);
+        const sy = toY(details.sunAltitudeDeg);
+        ctx.beginPath();
+        ctx.arc(sx, sy, 13, 0, Math.PI * 2);
+        ctx.fillStyle = '#fbbf24';
+        ctx.shadowColor = '#f59e0b';
+        ctx.shadowBlur = 24;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = '#fef3c7';
+        ctx.font = '11px sans-serif';
+        ctx.fillText('☀️ 태양', sx + 16, sy + 4);
+      }
+
+      // Draw Current Moon on Sky
+      const mx = toX(details.azimuthDeg);
+      const my = toY(details.altitudeDeg);
+      if (details.azimuthDeg >= 80 && details.azimuthDeg <= 280 && details.altitudeDeg >= -4) {
+        ctx.beginPath();
+        ctx.arc(mx, my, 14, 0, Math.PI * 2);
+        ctx.fillStyle = '#f8fafc';
+        ctx.shadowColor = '#38bdf8';
+        ctx.shadowBlur = 20;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        ctx.fillStyle = '#e0f2fe';
+        ctx.font = 'bold 12px sans-serif';
+        ctx.fillText(`🌙 달 (${details.altitudeDeg.toFixed(1)}°)`, mx + 18, my + 4);
+      }
+
+      // Namsan Seoul Tower Silhouette & Horizon Line
+      ctx.fillStyle = '#070b14';
+      ctx.beginPath();
+      ctx.moveTo(0, horizonY);
+      // Namsan Mountain Curve
+      ctx.lineTo(w * 0.40, horizonY - 14);
+      ctx.lineTo(w * 0.48, horizonY - 38);
+      // N Seoul Tower structure
+      ctx.lineTo(w * 0.485, horizonY - 38);
+      ctx.lineTo(w * 0.485, horizonY - 95); // tower column
+      ctx.lineTo(w * 0.488, horizonY - 98); // tower observation deck
+      ctx.lineTo(w * 0.482, horizonY - 98);
+      ctx.lineTo(w * 0.485, horizonY - 120); // spire antenna
+      ctx.lineTo(w * 0.487, horizonY - 38);
+      ctx.lineTo(w * 0.58, horizonY - 18);
+      ctx.lineTo(w, horizonY);
+      ctx.lineTo(w, h);
+      ctx.lineTo(0, h);
+      ctx.closePath();
+      ctx.fill();
+
+      // Horizon border line
+      ctx.strokeStyle = '#334155';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(0, horizonY);
+      ctx.lineTo(w, horizonY);
+      ctx.stroke();
+    }
+
+    function renderStarfield() {
+      const canvas = document.getElementById('canvas-stars');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      canvas.width = canvas.parentElement.clientWidth || 400;
+      canvas.height = canvas.parentElement.clientHeight || 460;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      ctx.fillStyle = '#ffffff';
+      for (let i = 0; i < 90; i++) {
+        const x = (Math.sin(i * 997.1) * 0.5 + 0.5) * canvas.width;
+        const y = (Math.cos(i * 443.3) * 0.5 + 0.5) * canvas.height;
+        const sz = (i % 4 === 0) ? 1.8 : 1.0;
+        const alpha = 0.2 + (i % 5) * 0.16;
+        ctx.globalAlpha = alpha;
+        ctx.beginPath();
+        ctx.arc(x, y, sz, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1.0;
+    }
+
+    let currentCalYear = 2026;
+    let currentCalMonth = 9;
+
+    function renderMonthlyCalendar(year, month) {
+      const container = document.getElementById('calendar-days-grid');
+      const titleEl = document.getElementById('cal-month-title');
+      if (!container || !titleEl) return;
+
+      currentCalYear = year;
+      currentCalMonth = month;
+      titleEl.textContent = `${year}년 ${month}월`;
+      container.innerHTML = '';
+
+      // Get first day of week and days in month
+      const firstDayOfWeek = new Date(year, month - 1, 1).getDay(); // 0 is Sunday
+      const daysInMonth = new Date(year, month, 0).getDate();
+
+      // Empty lead cells
+      for (let i = 0; i < firstDayOfWeek; i++) {
+        const empty = document.createElement('div');
+        empty.className = 'p-2 rounded-xl bg-slate-900/20 border border-slate-900/40 opacity-30';
+        container.appendChild(empty);
+      }
+
+      const selectedDateStr = datePicker ? datePicker.value : '';
+
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const noonDate = createKSTDate(year, month, day, 21, 0);
+        const details = getLunarDetails(noonDate);
+
+        const card = document.createElement('div');
+        const isSelected = dateStr === selectedDateStr;
+        card.className = `p-2 rounded-xl border flex flex-col items-center justify-between gap-1 transition-all cursor-pointer ${
+          isSelected
+            ? 'bg-sky-950/80 border-sky-400 ring-2 ring-sky-500/50'
+            : 'bg-slate-900/70 border-slate-800 hover:bg-slate-800/80 hover:border-slate-700'
+        }`;
+
+        // Mini canvas for accurate phase
+        const miniCanvas = document.createElement('canvas');
+        miniCanvas.width = 36;
+        miniCanvas.height = 36;
+        drawMiniMoon(miniCanvas, details.illumination, details.moonAge);
+
+        const dayNum = document.createElement('span');
+        dayNum.className = `text-xs font-semibold ${
+          (firstDayOfWeek + day - 1) % 7 === 0 ? 'text-rose-400' : ((firstDayOfWeek + day - 1) % 7 === 6 ? 'text-sky-400' : 'text-slate-200')
+        }`;
+        dayNum.textContent = `${day}일`;
+
+        const illumSpan = document.createElement('span');
+        illumSpan.className = 'text-[10px] font-mono text-slate-400';
+        illumSpan.textContent = `${Math.round(details.illumination * 100)}%`;
+
+        card.appendChild(dayNum);
+        card.appendChild(miniCanvas);
+        card.appendChild(illumSpan);
+
+        card.addEventListener('click', () => {
+          datePicker.value = dateStr;
+          updateSimulation();
+          renderMonthlyCalendar(year, month);
+        });
+
+        container.appendChild(card);
+      }
+    }
+
+    function drawMiniMoon(canvas, illumination, moonAge) {
+      const ctx = canvas.getContext('2d');
+      const r = 14;
+      const cx = canvas.width / 2;
+      const cy = canvas.height / 2;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      // Dark side
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.fillStyle = '#1e293b';
+      ctx.fill();
+
+      // Lit side
+      const isWaxing = moonAge < 14.765;
+      const k = illumination;
+
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.beginPath();
+      if (k < 0.5) {
+        const wOffset = r * (1 - 2 * k);
+        if (isWaxing) {
+          ctx.arc(0, 0, r, -Math.PI / 2, Math.PI / 2, false);
+          ctx.ellipse(0, 0, wOffset, r, 0, Math.PI / 2, -Math.PI / 2, false);
+        } else {
+          ctx.arc(0, 0, r, Math.PI / 2, -Math.PI / 2, false);
+          ctx.ellipse(0, 0, wOffset, r, 0, -Math.PI / 2, Math.PI / 2, false);
+        }
+      } else {
+        const wOffset = r * (2 * k - 1);
+        if (isWaxing) {
+          ctx.arc(0, 0, r, -Math.PI / 2, Math.PI / 2, false);
+          ctx.ellipse(0, 0, wOffset, r, 0, Math.PI / 2, -Math.PI / 2, true);
+        } else {
+          ctx.arc(0, 0, r, Math.PI / 2, -Math.PI / 2, false);
+          ctx.ellipse(0, 0, wOffset, r, 0, -Math.PI / 2, Math.PI / 2, true);
+        }
+      }
+      ctx.closePath();
+      ctx.fillStyle = '#fbbf24';
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function generateLunarStrip() {
+      const container = document.getElementById('lunar-strip-container');
+      if (!container || !datePicker) return;
+      container.innerHTML = '';
+
+      const [y, m, d] = datePicker.value.split('-').map(Number);
+      const baseDate = createKSTDate(y, m, d, 21, 0);
+
+      for (let offset = -14; offset <= 14; offset++) {
+        const testT = new Date(baseDate.getTime() + offset * 86400000);
+        const details = getLunarDetails(testT);
+        const dateStr = `${testT.getUTCFullYear()}-${String(testT.getUTCMonth() + 1).padStart(2, '0')}-${String(testT.getUTCDate()).padStart(2, '0')}`;
+
+        const card = document.createElement('div');
+        const isToday = offset === 0;
+        card.className = `shrink-0 p-2.5 rounded-xl border flex flex-col items-center gap-1 min-w-[70px] cursor-pointer transition ${
+          isToday ? 'bg-sky-950/80 border-sky-400 ring-2 ring-sky-500/50' : 'bg-slate-900/80 border-slate-800 hover:bg-slate-800'
+        }`;
+
+        const miniC = document.createElement('canvas');
+        miniC.width = 32;
+        miniC.height = 32;
+        drawMiniMoon(miniC, details.illumination, details.moonAge);
+
+        const lbl = document.createElement('span');
+        lbl.className = `text-[11px] font-semibold ${isToday ? 'text-sky-300' : 'text-slate-300'}`;
+        lbl.textContent = `${testT.getUTCMonth() + 1}/${testT.getUTCDate()}`;
+
+        const subLbl = document.createElement('span');
+        subLbl.className = 'text-[10px] font-mono text-slate-400';
+        subLbl.textContent = `${Math.round(details.illumination * 100)}%`;
+
+        card.appendChild(lbl);
+        card.appendChild(miniC);
+        card.appendChild(subLbl);
+
+        card.addEventListener('click', () => {
+          datePicker.value = dateStr;
+          updateSimulation();
+          generateLunarStrip();
+        });
+
+        container.appendChild(card);
+      }
+    }
+
+    const datePicker = document.getElementById('date-picker');
+    const timeSlider = document.getElementById('time-slider');
+    const selectedTimeDisplay = document.getElementById('selected-time-display');
+
+    function getSelectedDateTime() {
+      if (!datePicker || !timeSlider) return new Date();
+      const dateParts = datePicker.value.split('-').map(Number);
+      const minutes = parseInt(timeSlider.value, 10);
+      const hour = Math.floor(minutes / 60);
+      const minute = minutes % 60;
+      return createKSTDate(dateParts[0], dateParts[1], dateParts[2], hour, minute);
+    }
+
+    function updateSimulation() {
+      if (!datePicker || !timeSlider) return;
+      const simDate = getSelectedDateTime();
+      const details = getLunarDetails(simDate);
+
+      // Time Display
+      const minutes = parseInt(timeSlider.value, 10);
+      const hh = String(Math.floor(minutes / 60)).padStart(2, '0');
+      const mm = String(minutes % 60).padStart(2, '0');
+      selectedTimeDisplay.textContent = `${hh}:${mm}`;
+      document.getElementById('current-sim-clock').textContent = `${hh}:${mm}:00`;
+
+      // Phase and Metrics
+      document.getElementById('phase-name-kr').textContent = details.phaseNameKr;
+      document.getElementById('phase-name-en').textContent = details.phaseNameEn;
+      document.getElementById('moon-age-display').textContent = `${details.moonAge.toFixed(1)} 일`;
+      document.getElementById('lunar-calendar-est').textContent = `음력 약 ${Math.max(1, Math.round(details.moonAge))}일경`;
+
+      const illumPct = (details.illumination * 100).toFixed(1);
+      document.getElementById('illumination-text').textContent = `${illumPct}%`;
+      document.getElementById('illumination-bar').style.width = `${illumPct}%`;
+
+      // Coordinates
+      const altEl = document.getElementById('moon-alt-display');
+      altEl.textContent = `${details.altitudeDeg >= 0 ? '+' : ''}${details.altitudeDeg.toFixed(1)}°`;
+      altEl.className = `text-xl font-bold font-mono mt-1 ${details.altitudeDeg >= 0 ? 'text-emerald-400' : 'text-slate-500'}`;
+
+      const altStatusEl = document.getElementById('moon-alt-status');
+      if (details.altitudeDeg > 15) {
+        altStatusEl.textContent = '지평선 위 높이 뜸 (관측 적기)';
+        altStatusEl.className = 'text-[11px] text-emerald-400 mt-0.5';
+      } else if (details.altitudeDeg >= 0) {
+        altStatusEl.textContent = '지평선 부근 (건물/지형 확인)';
+        altStatusEl.className = 'text-[11px] text-amber-400 mt-0.5';
+      } else {
+        altStatusEl.textContent = '지평선 아래 (관측 불가)';
+        altStatusEl.className = 'text-[11px] text-slate-500 mt-0.5';
+      }
+
+      document.getElementById('moon-az-display').textContent = `${details.azimuthDeg.toFixed(1)}°`;
+      document.getElementById('moon-direction-display').textContent = `${getCompassDirection(details.azimuthDeg)} 방향`;
+
+      // Visibility badge
+      const badge = document.getElementById('visibility-badge');
+      if (details.altitudeDeg > 0) {
+        if (details.sunAltitudeDeg > 0) {
+          badge.className = 'inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-950/80 text-amber-300 border border-amber-800/60';
+          badge.textContent = '☀️ 대낮 관측 (낮달 상태)';
+        } else {
+          badge.className = 'inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-950/80 text-emerald-300 border border-emerald-800/60';
+          badge.textContent = '🌙 야간 관측 가능';
+        }
+      } else {
+        badge.className = 'inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-slate-900 text-slate-400 border border-slate-800';
+        badge.textContent = '지평선 아래 (월몰 상태)';
+      }
+
+      // Daytime alert banner on sky view
+      const skyAlert = document.getElementById('sky-daytime-alert');
+      if (skyAlert) {
+        if (details.altitudeDeg <= 0 && details.sunAltitudeDeg <= 0 && details.illumination < 0.3) {
+          skyAlert.classList.remove('hidden');
+        } else {
+          skyAlert.classList.add('hidden');
+        }
+      }
+
+      // Ephemeris times
+      const ephem = computeSeoulEphemerisTimes(simDate);
+      document.getElementById('time-moonrise').textContent = ephem.moonrise;
+      document.getElementById('time-transit').textContent = ephem.transit;
+      document.getElementById('time-moonset').textContent = ephem.moonset;
+
+      // Distance & Constellation
+      document.getElementById('moon-distance-display').textContent = `${Math.round(details.distanceKm).toLocaleString()} km`;
+      document.getElementById('supermoon-badge').textContent = details.distanceKm < 360000 ? '⭐ 슈퍼문(근지점)' : (details.distanceKm > 400000 ? '미니문(원지점)' : '평균 궤도 거리');
+      document.getElementById('moon-constellation-display').textContent = details.constellation;
+      document.getElementById('limb-angle-text').textContent = `${Math.round(details.limbAngle * DEG)}°`;
+
+      // Render Canvases
+      renderMoonCloseUp(details.illumination, details.moonAge, details.limbAngle);
+      renderSkyTrajectory(details, simDate);
+    }
+
+    let playInterval = null;
+    const btnPlay = document.getElementById('btn-play-time');
+    if (btnPlay) {
+      btnPlay.addEventListener('click', () => {
+        if (playInterval) {
+          clearInterval(playInterval);
+          playInterval = null;
+          document.getElementById('play-icon').textContent = '▶';
+          document.getElementById('play-text').textContent = '재생';
+        } else {
+          document.getElementById('play-icon').textContent = '⏸';
+          document.getElementById('play-text').textContent = '정지';
+          playInterval = setInterval(() => {
+            let val = parseInt(timeSlider.value, 10) + 10;
+            if (val >= 1440) val = 0;
+            timeSlider.value = val;
+            updateSimulation();
+          }, 100);
+        }
+      });
+    }
+
+    if (timeSlider) {
+      timeSlider.addEventListener('input', updateSimulation);
+    }
+
+    if (datePicker) {
+      datePicker.addEventListener('change', () => {
+        updateSimulation();
+        generateLunarStrip();
+        const [y, m] = datePicker.value.split('-').map(Number);
+        renderMonthlyCalendar(y, m);
+      });
+    }
+
+    document.getElementById('btn-prev-day')?.addEventListener('click', () => {
+      const d = getSelectedDateTime();
+      d.setUTCDate(d.getUTCDate() - 1);
+      datePicker.value = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+      updateSimulation();
+      generateLunarStrip();
+    });
+
+    document.getElementById('btn-next-day')?.addEventListener('click', () => {
+      const d = getSelectedDateTime();
+      d.setUTCDate(d.getUTCDate() + 1);
+      datePicker.value = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+      updateSimulation();
+      generateLunarStrip();
+    });
+
+    document.getElementById('btn-prev-hour')?.addEventListener('click', () => {
+      let v = parseInt(timeSlider.value, 10) - 60;
+      if (v < 0) v += 1440;
+      timeSlider.value = v;
+      updateSimulation();
+    });
+
+    document.getElementById('btn-next-hour')?.addEventListener('click', () => {
+      let v = parseInt(timeSlider.value, 10) + 60;
+      if (v >= 1440) v -= 1440;
+      timeSlider.value = v;
+      updateSimulation();
+    });
+
+    document.getElementById('btn-now')?.addEventListener('click', () => {
+      const now = new Date();
+      // Adjust to KST
+      const kstHours = (now.getUTCHours() + 9) % 24;
+      const kstMins = now.getUTCMinutes();
+      const kstYear = now.getUTCFullYear();
+      const kstMonth = now.getUTCMonth() + 1;
+      const kstDay = now.getUTCDate();
+
+      datePicker.value = `${kstYear}-${String(kstMonth).padStart(2, '0')}-${String(kstDay).padStart(2, '0')}`;
+      timeSlider.value = kstHours * 60 + kstMins;
+      updateSimulation();
+      generateLunarStrip();
+      renderMonthlyCalendar(kstYear, kstMonth);
+    });
+
+    // Preset Buttons
+    document.querySelectorAll('.preset-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const type = btn.getAttribute('data-preset');
+        if (type === 'chuseok') {
+          datePicker.value = '2026-09-25';
+          timeSlider.value = 21 * 60; // 21:00
+        } else if (type === 'daeboreum') {
+          datePicker.value = '2026-03-03';
+          timeSlider.value = 20 * 60;
+        } else if (type === 'supermoon') {
+          datePicker.value = '2026-11-24';
+          timeSlider.value = 22 * 60;
+        } else if (type === 'newmoon') {
+          datePicker.value = '2026-09-11';
+          timeSlider.value = 12 * 60; // 정오
+        }
+        updateSimulation();
+        generateLunarStrip();
+        const [y, m] = datePicker.value.split('-').map(Number);
+        renderMonthlyCalendar(y, m);
+      });
+    });
+
+    document.getElementById('btn-quick-fullmoon')?.addEventListener('click', () => {
+      datePicker.value = '2026-09-25';
+      timeSlider.value = 21 * 60;
+      updateSimulation();
+      generateLunarStrip();
+    });
+
+    // View Mode Tabs
+    const btnViewMoon = document.getElementById('view-mode-moon');
+    const btnViewSky = document.getElementById('view-mode-sky');
+    const btnViewCal = document.getElementById('view-mode-cal');
+    const contMoon = document.getElementById('container-moon-view');
+    const contSky = document.getElementById('container-sky-view');
+    const contCal = document.getElementById('container-cal-view');
+
+    function switchView(view) {
+      [btnViewMoon, btnViewSky, btnViewCal].forEach(b => {
+        b.className = 'view-btn px-3 py-1.5 rounded-lg text-slate-400 hover:text-white transition';
+      });
+      [contMoon, contSky, contCal].forEach(c => c.classList.add('hidden'));
+
+      if (view === 'moon') {
+        btnViewMoon.className = 'view-btn px-3 py-1.5 rounded-lg bg-sky-600 text-white font-medium transition shadow';
+        contMoon.classList.remove('hidden');
+        renderMoonCloseUp(getLunarDetails(getSelectedDateTime()).illumination, getLunarDetails(getSelectedDateTime()).moonAge, getLunarDetails(getSelectedDateTime()).limbAngle);
+      } else if (view === 'sky') {
+        btnViewSky.className = 'view-btn px-3 py-1.5 rounded-lg bg-sky-600 text-white font-medium transition shadow';
+        contSky.classList.remove('hidden');
+        const dt = getSelectedDateTime();
+        renderSkyTrajectory(getLunarDetails(dt), dt);
+      } else if (view === 'cal') {
+        btnViewCal.className = 'view-btn px-3 py-1.5 rounded-lg bg-sky-600 text-white font-medium transition shadow';
+        contCal.classList.remove('hidden');
+        const [y, m] = datePicker.value.split('-').map(Number);
+        renderMonthlyCalendar(y, m);
+      }
+    }
+
+    btnViewMoon?.addEventListener('click', () => switchView('moon'));
+    btnViewSky?.addEventListener('click', () => switchView('sky'));
+    btnViewCal?.addEventListener('click', () => switchView('cal'));
+
+    document.getElementById('btn-cal-prev-month')?.addEventListener('click', () => {
+      let m = currentCalMonth - 1;
+      let y = currentCalYear;
+      if (m < 1) { m = 12; y--; }
+      renderMonthlyCalendar(y, m);
+    });
+
+    document.getElementById('btn-cal-next-month')?.addEventListener('click', () => {
+      let m = currentCalMonth + 1;
+      let y = currentCalYear;
+      if (m > 12) { m = 1; y++; }
+      renderMonthlyCalendar(y, m);
+    });
+
+    function runCodeVerificationSuite() {
+      const testsListEl = document.getElementById('verify-tests-list');
+      const summaryBadge = document.getElementById('verify-summary-badge');
+      if (!testsListEl) return;
+
+      testsListEl.innerHTML = '';
+      const testCases = [];
+
+      // Test 1: J2000.0 Epoch Julian Date Precision
+      try {
+        const j2000Date = new Date(Date.UTC(2000, 0, 1, 12, 0, 0));
+        const jd = toJulianDate(j2000Date);
+        const passed = Math.abs(jd - 2451545.0) < 0.0001;
+        testCases.push({
+          title: '1. 율리우스일(JD) 표준 기준원점(J2000.0) 계산 정확도',
+          desc: `기대값: 2451545.0000 | 실제 계산값: ${jd.toFixed(4)}`,
+          passed
+        });
+      } catch (e) {
+        testCases.push({ title: '1. 율리우스일(JD) 계산 정확도', desc: e.message, passed: false });
+      }
+
+      // Test 2: KST ↔ UTC Timezone Offset Integrity (Strict UTC+9)
+      try {
+        const testKST = createKSTDate(2026, 9, 25, 21, 0, 0);
+        // 21:00 KST must equal 12:00 UTC
+        const utcHours = testKST.getUTCHours();
+        const passed = utcHours === 12;
+        testCases.push({
+          title: '2. KST(UTC+9) ↔ UTC 시각 변환 무결성',
+          desc: `2026-09-25 21:00 KST ➔ UTC ${utcHours}:00 (오차: 0분)`,
+          passed
+        });
+      } catch (e) {
+        testCases.push({ title: '2. KST 타임존 변환 무결성', desc: e.message, passed: false });
+      }
+
+      // Test 3: Phase Angle & Illumination Inversion Guard
+      try {
+        // Full Moon check: 2026-09-25 (Chuseok) should have high illumination > 90%
+        const fmDate = createKSTDate(2026, 9, 25, 21, 0);
+        const fmDetails = getLunarDetails(fmDate);
+        // New Moon check: 2026-09-11 should have low illumination < 10%
+        const nmDate = createKSTDate(2026, 9, 11, 12, 0);
+        const nmDetails = getLunarDetails(nmDate);
+
+        const passed = fmDetails.illumination > 0.90 && nmDetails.illumination < 0.10;
+        testCases.push({
+          title: '3. 위상각 및 조도율 역전 오류 방지(Illumination Inversion Guard)',
+          desc: `보름달: ${(fmDetails.illumination * 100).toFixed(1)}% (기준 >90%) | 신월/그믐: ${(nmDetails.illumination * 100).toFixed(1)}% (기준 <10%)`,
+          passed
+        });
+      } catch (e) {
+        testCases.push({ title: '3. 위상각 및 조도율 검증', desc: e.message, passed: false });
+      }
+
+      // Test 4: Topocentric Coordinate Bounds Protection
+      try {
+        const simDate = getSelectedDateTime();
+        const details = getLunarDetails(simDate);
+        const altValid = details.altitudeDeg >= -90 && details.altitudeDeg <= 90;
+        const azValid = details.azimuthDeg >= 0 && details.azimuthDeg <= 360;
+        const passed = altValid && azValid;
+        testCases.push({
+          title: '4. 서울 지평 좌표계(고도 -90°~+90°, 방위각 0°~360°) 유효 경계',
+          desc: `고도: ${details.altitudeDeg.toFixed(2)}° (정상 범위) | 방위각: ${details.azimuthDeg.toFixed(2)}° (정상 범위)`,
+          passed
+        });
+      } catch (e) {
+        testCases.push({ title: '4. 좌표계 유효 경계 검증', desc: e.message, passed: false });
+      }
+
+      // Test 5: Canvas Contexts & Memory Allocation
+      try {
+        const c1 = document.getElementById('canvas-moon');
+        const c2 = document.getElementById('canvas-sky');
+        const c3 = document.getElementById('canvas-stars');
+        const passed = !!(c1 && c2 && c3 && c1.getContext('2d') && c2.getContext('2d'));
+        testCases.push({
+          title: '5. HTML5 2D 가속 캔버스 렌더러 바인딩',
+          desc: `3개 렌더러(달 표면, 서울 스카이라인 궤적, 항성계) 정상 연결`,
+          passed
+        });
+      } catch (e) {
+        testCases.push({ title: '5. 캔버스 렌더러 바인딩', desc: e.message, passed: false });
+      }
+
+      // Test 6: DOM Elements Null-Safety Check
+      try {
+        const requiredIDs = [
+          'date-picker', 'time-slider', 'selected-time-display', 'phase-name-kr',
+          'illumination-bar', 'moon-alt-display', 'moon-az-display', 'time-moonrise',
+          'time-transit', 'time-moonset', 'container-cal-view', 'calendar-days-grid'
+        ];
+        const missing = requiredIDs.filter(id => !document.getElementById(id));
+        const passed = missing.length === 0;
+        testCases.push({
+          title: '6. 핵심 DOM 인터랙션 노드 무결성 (Null-pointer Exception 방어)',
+          desc: passed ? '총 12개 주요 인터랙티브 컨트롤 노드 결함 없음' : `누락된 ID: ${missing.join(', ')}`,
+          passed
+        });
+      } catch (e) {
+        testCases.push({ title: '6. DOM 무결성 검사', desc: e.message, passed: false });
+      }
+
+      // Test 7: Ephemeris Calculations for Moonrise/Transit/Moonset
+      try {
+        const simDate = getSelectedDateTime();
+        const ephem = computeSeoulEphemerisTimes(simDate);
+        const passed = ephem && typeof ephem.moonrise === 'string' && typeof ephem.transit === 'string';
+        testCases.push({
+          title: '7. 서울 월출·남중·월몰 천문 출몰 계산식 무결성',
+          desc: `월출: ${ephem.moonrise} | 남중: ${ephem.transit} | 월몰: ${ephem.moonset}`,
+          passed
+        });
+      } catch (e) {
+        testCases.push({ title: '7. 출몰 계산식 검증', desc: e.message, passed: false });
+      }
+
+      // Render Test Cards
+      let allPassed = true;
+      testCases.forEach(tc => {
+        if (!tc.passed) allPassed = false;
+        const item = document.createElement('div');
+        item.className = `p-3 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 ${
+          tc.passed
+            ? 'bg-slate-900/60 border-slate-800 text-slate-300'
+            : 'bg-rose-950/40 border-rose-800/80 text-rose-200'
+        }`;
+
+        item.innerHTML = `
+          <div>
+            <div class="font-semibold text-slate-100 flex items-center gap-1.5">
+              <span>${tc.passed ? '🟢' : '🔴'}</span>
+              <span>${tc.title}</span>
+            </div>
+            <div class="text-[11px] text-slate-400 mt-0.5">${tc.desc}</div>
+          </div>
+          <span class="shrink-0 px-2 py-0.5 rounded text-[10px] font-bold ${
+            tc.passed ? 'bg-emerald-950 text-emerald-300 border border-emerald-800' : 'bg-rose-900 text-rose-200'
+          }">${tc.passed ? 'PASS' : 'FAIL'}</span>
+        `;
+        testsListEl.appendChild(item);
+      });
+
+      if (summaryBadge) {
+        summaryBadge.textContent = allPassed ? '전체 테스트 100% 통과 (ALL PASS)' : '일부 항목 점검 필요';
+        summaryBadge.className = allPassed ? 'font-mono text-emerald-400 font-bold' : 'font-mono text-rose-400 font-bold';
+      }
+    }
+
+    // Modal Events
+    const verifyModal = document.getElementById('verify-modal');
+    const btnOpenVerify = document.getElementById('btn-open-verify');
+    const btnCloseVerify = document.getElementById('btn-close-verify');
+    const btnConfirmVerify = document.getElementById('btn-confirm-verify');
+    const btnRerunVerify = document.getElementById('btn-rerun-verify');
+
+    if (btnOpenVerify && verifyModal) {
+      btnOpenVerify.addEventListener('click', () => {
+        verifyModal.classList.remove('hidden');
+        runCodeVerificationSuite();
+      });
+    }
+
+    [btnCloseVerify, btnConfirmVerify].forEach(btn => {
+      if (btn && verifyModal) {
+        btn.addEventListener('click', () => {
+          verifyModal.classList.add('hidden');
+        });
+      }
+    });
+
+    if (btnRerunVerify) {
+      btnRerunVerify.addEventListener('click', () => {
+        runCodeVerificationSuite();
+      });
+    }
+
+    window.addEventListener('click', (e) => {
+      if (e.target === verifyModal) {
+        verifyModal.classList.add('hidden');
+      }
+    });
+
+    window.addEventListener('resize', () => {
+      renderStarfield();
+      updateSimulation();
+    });
+
+    // Initialize Application
+    window.onload = function() {
+      // Set Default Date (2026-09-25 Chuseok or current)
+      if (datePicker && !datePicker.value) {
+        datePicker.value = '2026-09-25';
+      }
+      renderStarfield();
+      updateSimulation();
+      generateLunarStrip();
+      const [y, m] = datePicker.value.split('-').map(Number);
+      renderMonthlyCalendar(y, m);
+    };
+  </script>
+</body>
+</html>
